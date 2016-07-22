@@ -13,14 +13,14 @@ class ProductTemplate(models.Model):
 
     # Column Section
     coeff1_id = fields.Many2one(
+        comodel_name='product.coefficient', string='Supplier Coefficient',
+        domain="[('coefficient_type', '=', 'supplier')]")
+    coeff2_id = fields.Many2one(
         comodel_name='product.coefficient', string='Shipping Coefficient',
         domain="[('coefficient_type', '=', 'shipping')]")
-    coeff2_id = fields.Many2one(
+    coeff3_id = fields.Many2one(
         comodel_name='product.coefficient', string='Loss Coefficient',
         domain="[('coefficient_type', '=', 'loss')]")
-    coeff3_id = fields.Many2one(
-        comodel_name='product.coefficient', string='Coefficient 3',
-        domain="[('coefficient_type', '=', 'custom')]")
     coeff4_id = fields.Many2one(
         comodel_name='product.coefficient', string='Coefficient 4',
         domain="[('coefficient_type', '=', 'custom')]")
@@ -28,6 +28,15 @@ class ProductTemplate(models.Model):
         comodel_name='product.coefficient', string='Coefficient 5',
         domain="[('coefficient_type', '=', 'custom')]")
     coeff6_id = fields.Many2one(
+        comodel_name='product.coefficient', string='Coefficient 6',
+        domain="[('coefficient_type', '=', 'custom')]")
+    coeff7_id = fields.Many2one(
+        comodel_name='product.coefficient', string='Coefficient 7',
+        domain="[('coefficient_type', '=', 'custom')]")
+    coeff8_id = fields.Many2one(
+        comodel_name='product.coefficient', string='Coefficient 8',
+        domain="[('coefficient_type', '=', 'custom')]")
+    coeff9_id = fields.Many2one(
         comodel_name='product.coefficient', string='Margin Coefficient',
         domain="[('coefficient_type', '=', 'margin')]")
 
@@ -36,18 +45,23 @@ class ProductTemplate(models.Model):
         help="Base Price is the Sale Price of your Supplier.\n"
         "If product is sold by many suppliers, the first one is selected.\n"
         "If a supplier sell the product with different prices, the bigger"
-        "    price is used."
+        " price is used.\n\n"
         "If The supplier info belong an end date, the base price will be"
         " updated nightly, by a cron task.")
 
+    alternative_base_price = fields.Float(
+        string='Alternative Base Price',
+        help="This alternative base price will be used instead of the Base"
+        " Price, if defined.")
+
     coeff1_inter = fields.Float(
-        string='With Shipping Coefficient', compute='_compute_coeff1_inter',
-        store=True)
+        string='With Supplier Discount Coefficient',
+        compute='_compute_coeff1_inter', store=True)
     coeff2_inter = fields.Float(
-        string='With Loss Coefficient', compute='_compute_coeff2_inter',
+        string='With Shipping Coefficient', compute='_compute_coeff2_inter',
         store=True)
     coeff3_inter = fields.Float(
-        string='With Coefficient 3', compute='_compute_coeff3_inter',
+        string='With Loss Coefficient', compute='_compute_coeff3_inter',
         store=True)
     coeff4_inter = fields.Float(
         string='With Coefficient 4', compute='_compute_coeff4_inter',
@@ -56,12 +70,22 @@ class ProductTemplate(models.Model):
         string='With Coefficient 5', compute='_compute_coeff5_inter',
         store=True)
     coeff6_inter = fields.Float(
-        string='With Margin Coefficient', compute='_compute_coeff6_inter',
+        string='With Coefficient 6', compute='_compute_coeff6_inter',
+        store=True)
+    coeff7_inter = fields.Float(
+        string='With Coefficient 7', compute='_compute_coeff7_inter',
+        store=True)
+    coeff8_inter = fields.Float(
+        string='With Coefficient 8', compute='_compute_coeff8_inter',
+        store=True)
+    coeff9_inter = fields.Float(
+        string='With Margin Coefficient', compute='_compute_coeff9_inter',
         store=True)
 
     theoritical_price = fields.Float(
-        string='Theoritical Price', compute='_compute_theoritical_price',
-        store=True, digits=dp.get_precision('Product Price'))
+        string='Theoritical Price VAT Incl.',
+        compute='_compute_theoritical_price', store=True,
+        digits=dp.get_precision('Product Price'))
 
     has_theoritical_price_different = fields.Boolean(
         string='Has Theoritical Price Different', store=True,
@@ -85,8 +109,12 @@ class ProductTemplate(models.Model):
 
     # Compute Section
     @api.multi
-    @api.depends('product_variant_ids', 'seller_ids.price')
+    @api.depends(
+        'product_variant_ids', 'uom_id', 'uom_po_id', 'seller_ids.price',
+        'seller_ids.product_uom')
     def _compute_base_price(self):
+        # TODO IMPME. Compute with discount, depending on
+        # product_supplierinfo_discount
         product_obj = self.env['product.product']
         for template in self:
             base_price = 0.0
@@ -94,17 +122,28 @@ class ProductTemplate(models.Model):
                 seller = product_obj._select_seller(
                     template.product_variant_ids[0])
                 if seller:
-                    base_price = seller.price
+                    if seller.product_uom.id == template.uom_id.id:
+                        base_price = seller.price
+                    else:
+                        base_price = ((
+                            seller.price /
+                            seller.product_uom.factor_inv) *
+                            template.uom_id.factor_inv)
             template.base_price = base_price
 
     @api.multi
     @api.depends(
-        'base_price', 'coeff1_id.operation_type', 'coeff1_id.value')
+        'alternative_base_price', 'base_price', 'coeff1_id.operation_type',
+        'coeff1_id.value')
     def _compute_coeff1_inter(self):
         coefficient_obj = self.env['product.coefficient']
         for template in self:
-            template.coeff1_inter = coefficient_obj.compute_price(
-                template.coeff1_id, template.base_price)
+            if template.alternative_base_price:
+                template.coeff1_inter = coefficient_obj.compute_price(
+                    template.coeff1_id, template.alternative_base_price)
+            else:
+                template.coeff1_inter = coefficient_obj.compute_price(
+                    template.coeff1_id, template.base_price)
 
     @api.multi
     @api.depends(
@@ -153,7 +192,34 @@ class ProductTemplate(models.Model):
 
     @api.multi
     @api.depends(
-        'coeff6_inter', 'taxes_id.amount', 'taxes_id.price_include',
+        'coeff6_inter', 'coeff7_id.operation_type', 'coeff7_id.value')
+    def _compute_coeff7_inter(self):
+        coefficient_obj = self.env['product.coefficient']
+        for template in self:
+            template.coeff7_inter = coefficient_obj.compute_price(
+                template.coeff7_id, template.coeff6_inter)
+
+    @api.multi
+    @api.depends(
+        'coeff7_inter', 'coeff8_id.operation_type', 'coeff8_id.value')
+    def _compute_coeff8_inter(self):
+        coefficient_obj = self.env['product.coefficient']
+        for template in self:
+            template.coeff8_inter = coefficient_obj.compute_price(
+                template.coeff8_id, template.coeff7_inter)
+
+    @api.multi
+    @api.depends(
+        'coeff8_inter', 'coeff9_id.operation_type', 'coeff9_id.value')
+    def _compute_coeff9_inter(self):
+        coefficient_obj = self.env['product.coefficient']
+        for template in self:
+            template.coeff9_inter = coefficient_obj.compute_price(
+                template.coeff9_id, template.coeff8_inter)
+
+    @api.multi
+    @api.depends(
+        'coeff9_inter', 'taxes_id.amount', 'taxes_id.price_include',
         'taxes_id.amount_type')
     def _compute_theoritical_price(self):
         for template in self:
@@ -166,14 +232,15 @@ class ProductTemplate(models.Model):
                         " prices with coefficients for the product %s") % (
                         tax.name, template.name))
                 multi *= 1 + (tax.amount / 100)
-            template.theoritical_price = template.coeff6_inter * multi
+            template.theoritical_price = template.coeff9_inter * multi
 
     @api.multi
     @api.depends(
         'theoritical_price', 'list_price')
     def _compute_has_theoritical_price_different(self):
         for template in self:
-            if template.theoritical_price and template.base_price:
+            if template.theoritical_price and (
+                    template.base_price or template.alternative_base_price):
                 template.has_theoritical_price_different =\
                     template.list_price != template.theoritical_price
             else:

@@ -11,14 +11,18 @@
         <field name="model">product.template</field>
         <field name="arch" type="xml">
             <tree editable="bottom">
-                <field name="name"/>
+                <field name="name" readonly="1"/>
                 <field name="base_price" />
+                <field name="alternative_base_price" />
                 <field name="coeff1_id" />
                 <field name="coeff2_id" />
                 <field name="coeff3_id" />
                 <field name="coeff4_id" />
                 <field name="coeff5_id" />
                 <field name="coeff6_id" />
+                <field name="coeff7_id" />
+                <field name="coeff8_id" />
+                <field name="coeff9_id" />
                 <field name="theoritical_price" />
                 <field name="list_price" />
                 <field name="has_theoritical_price_different" invisible="1" />
@@ -63,20 +67,12 @@
                     <group cols="4">
                         <group colspan="4">
                             <group>
-                                <field name="base_price" style="background-color:#FFAD9C" />
-
+                                <field name="base_price" />
+                                <field name="alternative_base_price" />
                             </group>
                             <group />
                         </group>
                         <group colspan="4" string="Coefficients">
-                            <group>
-                                <field name="coeff1_inter" style="background-color:#DDFFFF" />
-                                <field name="coeff2_inter" style="background-color:#DDFFFF" />
-                                <field name="coeff3_inter" style="background-color:#DDFFFF" />
-                                <field name="coeff4_inter" style="background-color:#DDFFFF" />
-                                <field name="coeff5_inter" style="background-color:#DDFFFF" />
-                                <field name="coeff6_inter" style="background-color:#DDFFFF" />
-                            </group>
                             <group>
                                 <field name="coeff1_id"/>
                                 <field name="coeff2_id"/>
@@ -84,6 +80,20 @@
                                 <field name="coeff4_id"/>
                                 <field name="coeff5_id"/>
                                 <field name="coeff6_id"/>
+                                <field name="coeff7_id"/>
+                                <field name="coeff8_id"/>
+                                <field name="coeff9_id"/>
+                            </group>
+                            <group>
+                                <field name="coeff1_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff2_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff3_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff4_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff5_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff6_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff7_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff8_inter" style="background-color:#DDFFFF" />
+                                <field name="coeff9_inter" style="background-color:#DDFFFF" />
                             </group>
                         </group>
                         <group colspan="4">
