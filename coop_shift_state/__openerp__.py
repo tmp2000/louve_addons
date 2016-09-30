@@ -22,4 +22,7 @@ This module add state to partners depending of its attendees
     'data': [
         'views/view_res_partner.xml',
     ],
+    'demo': [
+        'demo/res_groups.xml',
+    ],
 }
